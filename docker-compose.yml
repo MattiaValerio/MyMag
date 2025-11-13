@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: mymag-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      # You can override these via a .env file next to this compose file
+      POSTGRES_DB: ${POSTGRES_DB:-mymag}
+      POSTGRES_USER: ${POSTGRES_USER:-mymag}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mymag}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mymag} -d ${POSTGRES_DB:-mymag}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  pgdata:
+    name: mymag-postgres-data

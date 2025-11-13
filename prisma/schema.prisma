@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  AGENT
+  CLIENT
+}
+
+enum MovementType {
+  IN
+  OUT
+}
+
+enum OrderStatus {
+  DRAFT
+  CONFIRMED
+  SHIPPED
+  CANCELLED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  role         Role     @default(AGENT)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  movements Movement[]
+  orders    Order[]    @relation("UserOrders")
+  customer  Customer?
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?  @unique
+  phone     String?
+  address   String?
+  vatNumber String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Optional linked user account for portal access
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id])
+
+  promotions CustomerPromotion[]
+  orders     Order[]
+  movements  Movement[]
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?  @unique
+  phone     String?
+  address   String?
+  vatNumber String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Article {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  description String
+  price       Decimal  @db.Decimal(10, 2)
+  stock       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  movements  Movement[]
+  orderItems OrderItem[]
+  promotions Promotion[]
+}
+
+model Movement {
+  id        String       @id @default(cuid())
+  type      MovementType
+  quantity  Int
+  reason    String?
+  date      DateTime     @default(now())
+  unitPrice Decimal?     @db.Decimal(10, 2)
+  createdAt DateTime     @default(now())
+
+  // Relations
+  articleId String
+  article   Article @relation(fields: [articleId], references: [id])
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+
+  orderId String?
+  order   Order?  @relation(fields: [orderId], references: [id])
+
+  @@index([articleId])
+  @@index([customerId])
+  @@index([userId])
+}
+
+model Order {
+  id        String      @id @default(cuid())
+  status    OrderStatus @default(DRAFT)
+  total     Decimal     @db.Decimal(10, 2)
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  createdById String?
+  createdBy   User?   @relation("UserOrders", fields: [createdById], references: [id])
+
+  items     OrderItem[]
+  movements Movement[]
+
+  @@index([customerId])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  quantity  Int
+  unitPrice Decimal  @db.Decimal(10, 2)
+  discount  Decimal? @db.Decimal(10, 2)
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  articleId String
+  article   Article @relation(fields: [articleId], references: [id])
+
+  @@index([orderId])
+  @@index([articleId])
+}
+
+model Promotion {
+  id            String       @id @default(cuid())
+  name          String
+  description   String?
+  discountType  DiscountType
+  discountValue Decimal      @db.Decimal(10, 2)
+  startDate     DateTime?
+  endDate       DateTime?
+  active        Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // Optional limit to a specific article
+  articleId String?
+  article   Article? @relation(fields: [articleId], references: [id])
+
+  customers CustomerPromotion[]
+}
+
+model CustomerPromotion {
+  id        String    @id @default(cuid())
+  startDate DateTime?
+  endDate   DateTime?
+  active    Boolean   @default(true)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  promotionId String
+  promotion   Promotion @relation(fields: [promotionId], references: [id])
+
+  @@unique([customerId, promotionId])
+  @@index([promotionId])
+}
