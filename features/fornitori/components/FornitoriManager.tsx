@@ -2,63 +2,58 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ConfirmDialog } from "@/components/layout/ConfirmDialog"
-import { Supplier } from "@prisma/client"
+import { SupplierDialog, supplierSchema, type SupplierFormValues } from "./SupplierDialog"
 
-type SupplierT = { id: string; name: string; email: string | null; phone: string | null; address: string | null; vatNumber: string | null }
+type SupplierRow = {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  address: string | null
+  vatNumber: string | null
+}
 
-type Props = { initialSuppliers: SupplierT[] }
-
-type Editable = Pick<Supplier, "name" | "email" | "phone" | "address" | "vatNumber">
+type Props = { initialSuppliers: SupplierRow[] }
 
 export function FornitoriManager({ initialSuppliers }: Props) {
-  const [suppliers, setSuppliers] = useState<SupplierT[]>(initialSuppliers)
-  const [creating, setCreating] = useState<Editable>({ name: "", email: "", phone: "", address: "", vatNumber: "" })
-  const [editing, setEditing] = useState<(Editable & { id: string }) | null>(null)
-  const [openEdit, setOpenEdit] = useState(false)
+  const [suppliers, setSuppliers] = useState<SupplierRow[]>(initialSuppliers)
+  const [openCreate, setOpenCreate] = useState(false)
+  const [openEditId, setOpenEditId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [openViewId, setOpenViewId] = useState<string | null>(null)
 
-  async function createSupplier() {
-    if (!creating.name.trim()) return
+  async function handleCreate(values: SupplierFormValues) {
     setBusy(true)
     try {
+      const payload = normalizePayload(values)
       const res = await fetch("/api/suppliers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...creating }),
+        body: JSON.stringify(payload),
       })
       if (!res.ok) throw new Error("Errore creazione")
-      const created: SupplierT = await res.json()
+      const created = await res.json()
       setSuppliers((s) => [...s, created].sort((a, b) => a.name.localeCompare(b.name)))
-      setCreating({ name: "", email: "", phone: "", address: "", vatNumber: "" })
+      setOpenCreate(false)
     } finally {
       setBusy(false)
     }
   }
 
-  async function updateSupplier() {
-    if (!editing) return
-    if (!editing.name.trim()) return
+  async function handleUpdate(id: string, values: SupplierFormValues) {
     setBusy(true)
     try {
-      const res = await fetch(`/api/suppliers/${editing.id}`, {
+      const payload = normalizePayload(values)
+      const res = await fetch(`/api/suppliers/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: editing.name,
-          email: editing.email,
-          phone: editing.phone,
-          address: editing.address,
-          vatNumber: editing.vatNumber,
-        }),
+        body: JSON.stringify(payload),
       })
       if (!res.ok) throw new Error("Errore aggiornamento")
-      const updated: SupplierT = await res.json()
+      const updated = await res.json()
       setSuppliers((list) => list.map((s) => (s.id === updated.id ? updated : s)).sort((a, b) => a.name.localeCompare(b.name)))
-      setOpenEdit(false)
-      setEditing(null)
+      setOpenEditId(null)
     } finally {
       setBusy(false)
     }
@@ -77,17 +72,9 @@ export function FornitoriManager({ initialSuppliers }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border p-3">
-        <div className="grid gap-2 sm:grid-cols-5">
-          <Input placeholder="Nome*" value={creating.name} onChange={(e) => setCreating((v) => ({ ...v, name: e.target.value }))} />
-          <Input placeholder="Email" value={creating.email ?? ""} onChange={(e) => setCreating((v) => ({ ...v, email: e.target.value }))} />
-          <Input placeholder="Telefono" value={creating.phone ?? ""} onChange={(e) => setCreating((v) => ({ ...v, phone: e.target.value }))} />
-          <Input placeholder="Indirizzo" value={creating.address ?? ""} onChange={(e) => setCreating((v) => ({ ...v, address: e.target.value }))} />
-          <div className="flex gap-2">
-            <Input className="flex-1" placeholder="P.IVA" value={creating.vatNumber ?? ""} onChange={(e) => setCreating((v) => ({ ...v, vatNumber: e.target.value }))} />
-            <Button onClick={createSupplier} disabled={busy || !creating.name.trim()}>Aggiungi</Button>
-          </div>
-        </div>
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">Fornitori totali: {suppliers.length}</div>
+        <Button onClick={() => setOpenCreate(true)}>Nuovo fornitore</Button>
       </div>
 
       <div className="overflow-x-auto rounded-lg border">
@@ -112,26 +99,8 @@ export function FornitoriManager({ initialSuppliers }: Props) {
                 <td className="px-3 py-2">{s.vatNumber ?? "—"}</td>
                 <td className="px-3 py-2">
                   <div className="flex justify-end gap-2">
-                    <Dialog open={openEdit && editing?.id === s.id} onOpenChange={(o) => { setOpenEdit(o); if (!o) setEditing(null) }}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" onClick={() => { setEditing({ id: s.id, name: s.name, email: s.email ?? "", phone: s.phone ?? "", address: s.address ?? "", vatNumber: s.vatNumber ?? "" }); setOpenEdit(true) }}>Modifica</Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Modifica fornitore</DialogTitle>
-                        </DialogHeader>
-                        <div className="grid gap-2">
-                          <Input placeholder="Nome*" value={editing?.name ?? ""} onChange={(e) => setEditing((v) => v ? { ...v, name: e.target.value } : v)} />
-                          <Input placeholder="Email" value={editing?.email ?? ""} onChange={(e) => setEditing((v) => v ? { ...v, email: e.target.value } : v)} />
-                          <Input placeholder="Telefono" value={editing?.phone ?? ""} onChange={(e) => setEditing((v) => v ? { ...v, phone: e.target.value } : v)} />
-                          <Input placeholder="Indirizzo" value={editing?.address ?? ""} onChange={(e) => setEditing((v) => v ? { ...v, address: e.target.value } : v)} />
-                          <Input placeholder="P.IVA" value={editing?.vatNumber ?? ""} onChange={(e) => setEditing((v) => v ? { ...v, vatNumber: e.target.value } : v)} />
-                        </div>
-                        <DialogFooter>
-                          <Button onClick={updateSupplier} disabled={busy || !editing?.name.trim()}>Salva</Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                    <Button variant="ghost" size="sm" onClick={() => setOpenViewId(s.id)}>Dettagli</Button>
+                    <Button variant="outline" size="sm" onClick={() => setOpenEditId(s.id)}>Modifica</Button>
                     <ConfirmDialog
                       title="Eliminare il fornitore?"
                       description="Questa azione non può essere annullata"
@@ -145,6 +114,53 @@ export function FornitoriManager({ initialSuppliers }: Props) {
           </tbody>
         </table>
       </div>
+
+      <SupplierDialog
+        open={openCreate}
+        onOpenChange={setOpenCreate}
+        mode="create"
+        onSubmit={handleCreate}
+        loading={busy}
+      />
+
+      {openEditId && (
+        <SupplierDialog
+          open={!!openEditId}
+          onOpenChange={(o) => !o && setOpenEditId(null)}
+          mode="edit"
+          // For edit, fetch fresh data or use row minimal fields
+          initialValues={suppliers.find((x) => x.id === openEditId) as any}
+          onSubmit={(vals) => handleUpdate(openEditId, vals)}
+          loading={busy}
+        />
+      )}
+
+      {openViewId && (
+        <SupplierDialog
+          open={!!openViewId}
+          onOpenChange={(o) => !o && setOpenViewId(null)}
+          mode="view"
+          initialValues={suppliers.find((x) => x.id === openViewId) as any}
+        />
+      )}
     </div>
   )
+}
+
+function normalizePayload(values: SupplierFormValues) {
+  const parsed = supplierSchema.safeParse(values)
+  const v: any = parsed.success ? parsed.data : values
+  const out: Record<string, any> = {}
+  for (const [k, val] of Object.entries(v)) {
+    if (k === "name") {
+      out[k] = val
+      continue
+    }
+    if (val === "" || val === undefined || val === null) {
+      // undefined means "do not update" for PATCH; for POST it's fine
+      continue
+    }
+    out[k] = val
+  }
+  return out
 }

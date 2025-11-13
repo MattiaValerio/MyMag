@@ -1,0 +1,18 @@
+-- AlterTable
+ALTER TABLE "Supplier" ADD COLUMN     "city" TEXT,
+ADD COLUMN     "contactName" TEXT,
+ADD COLUMN     "contactRole" TEXT,
+ADD COLUMN     "country" TEXT,
+ADD COLUMN     "defaultDiscount" DECIMAL(5,2),
+ADD COLUMN     "iban" TEXT,
+ADD COLUMN     "leadTimeDays" INTEGER,
+ADD COLUMN     "mobile" TEXT,
+ADD COLUMN     "notes" TEXT,
+ADD COLUMN     "paymentMethod" TEXT,
+ADD COLUMN     "paymentTerms" TEXT,
+ADD COLUMN     "pecEmail" TEXT,
+ADD COLUMN     "phone2" TEXT,
+ADD COLUMN     "sdiCode" TEXT,
+ADD COLUMN     "taxCode" TEXT,
+ADD COLUMN     "website" TEXT,
+ADD COLUMN     "zip" TEXT;

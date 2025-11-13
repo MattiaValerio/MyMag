@@ -70,7 +70,27 @@ model Supplier {
   email     String?  @unique
   phone     String?
   address   String?
+  city      String?
+  zip       String?
+  country   String?
+  taxCode   String?
   vatNumber String?
+  // Commercial
+  paymentTerms   String?
+  paymentMethod  String?
+  iban           String?
+  sdiCode        String?
+  pecEmail       String?
+  defaultDiscount Decimal? @db.Decimal(5, 2)
+  leadTimeDays    Int?
+  // Contacts
+  contactName String?
+  contactRole String?
+  mobile      String?
+  website     String?
+  phone2      String?
+  // Notes
+  notes String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
